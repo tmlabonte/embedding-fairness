@@ -1,127 +1,24 @@
-import pandas
-import string
-import re
-import numpy as np
-import math
 import argparse
+import math
 import os
 import pickle
-import matplotlib.pyplot as plt
-from sklearn.decomposition import TruncatedSVD
-from nltk.corpus import stopwords
-from scipy.sparse import dok_matrix, save_npz, load_npz
 from random import randrange
+import sys
 
-def article_preprocess(article):
-    """ Preprocesses a raw article."""
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.sparse import dok_matrix, save_npz, load_npz
+from sklearn.decomposition import TruncatedSVD
 
-    # Converts to lowercase.
-    article = article.lower()
-
-    # Removes punctuation.
-    article = article.translate(str.maketrans("", "", string.punctuation))
-
-    # Replaces pesky chars.
-    article = article.replace('“', '').replace('”', '').replace('’', '\'')
-    article = article.replace('£', '').replace('—', '').replace("\'", "")
-
-    # Removes numbers.
-    article = re.sub(r"\d+", "", article)
-
-    # Removes single-char words.
-    article = re.sub(r"\b[a-zA-Z]\b", "", article)
-
-    # Removes excessive spaces.
-    article = re.sub(" +", " ", article)
-
-    return article
-
-def corpus_preprocess(corpus):
-    """ Preprocesses corpus by removing rare words and stopwords"""
-    # Creates a dictionary of word : count.
-    counts = {}
-    for article in corpus:
-        for word in article.split():
-            if word in counts:
-                counts[word] += 1
-            else:
-                counts[word] = 1
-
-    # Creates a dictionary of count : frequency.
-    frequencies = {}
-    for word in counts:
-      if counts[word] in frequencies:
-        frequencies[counts[word]] += 1
-      else:
-        frequencies[counts[word]] = 1
-
-    # Creates set of rare words.
-    rare_words = set()
-    for word in list(counts.keys()):
-        if counts[word] <= FLAGS.min_freq:
-            rare_words.add(word)
-
-    # Gets set of stopwords.
-    stop_words = set(stopwords.words("english"))
-
-    # Removes rare words and stopwords from each article.
-    words_to_remove = rare_words.union(stop_words)
-    for i, article in enumerate(corpus):
-        result_words = [word for word in article.split() if word not in words_to_remove]
-        corpus[i] = " ".join(result_words)
-
-    return corpus
-
-def create_corpus_and_vocab():
-    """ Creates the corpus and vocab from the dataset.
-
-        Extracts and preprocesses articles.
-    """
-
-    # Reads the dataset into a Pandas DataFrame.
-    print("Loading data...")
-    df = pandas.read_csv(FLAGS.data_path, engine="python",
-                         encoding="utf-8", error_bad_lines=False)
-
-    # Retrieves the first NUM_ARTICLES entries in the content column.
-    corpus = list(df["content"])[:FLAGS.num_articles]
-    print("Done loading data.\n")
-
-    # Preprocesses corpus.
-    print("Preprocessing corpus...")
-    corpus = [article_preprocess(article) for article in corpus]
-    corpus = corpus_preprocess(corpus) 
-    print("Done preprocessing corpus.\n")
-
-    # Creates a vocab with ID's for O(1) lookup.
-    vocab = {}
-    for article in corpus:
-        for word in article.split():
-            vocab.setdefault(word, len(vocab))
-
-    # Creates save dir if necessary.
-    if not os.path.exists(FLAGS.save_dir):
-        os.makedirs(FLAGS.save_dir)
-
-    # Saves the corpus and vocab.
-    pickle.dump(corpus, open(FLAGS.corpus_path, "wb"))
-    pickle.dump(vocab, open(FLAGS.vocab_path, "wb"))
-    print("Saved corpus and vocab.")
-
-    return corpus, vocab
-
-def load_corpus_and_vocab():
-    """ Loads the corpus and vocab"""
-
-    return pickle.load(open(FLAGS.corpus_path, "rb")), \
-           pickle.load(open(FLAGS.vocab_path, "rb"))
+sys.path.append("..")
+from utils import load_corpus_and_vocab, create_corpus_and_vocab
 
 def create_co_matrix(corpus, vocab):
     """ Creates the co-occurrence matrix of a corpus.
 
         Returns a scipy.sparse.csr_matrix where matrix[i, j]
         is the frequency that words with vocab index i and j
-        occur in each others' contexts.
+        occur in each others" contexts.
 
         Note that the context window size is sampled ~Unif(1, 10).
         This has the same effect as harmonic weighting.
@@ -130,13 +27,13 @@ def create_co_matrix(corpus, vocab):
     # Sets size and creates matrix.
     size = len(vocab)
     matrix = dok_matrix((size, size), np.dtype(int))
-    
+
     # Iterates through every article in the corpus
     for article_index, article in enumerate(corpus):
         # Prints progress.
         if article_index % 100 == 0:
-            print("Processing article {0}/{1}".format(article_index, FLAGS.num_articles))
-        
+            print("Processing article {}/{}".format(article_index, FLAGS.num_articles))
+
         # Converts article to list of words for processing.
         article = article.split()
         for anchor_word_index, anchor_word in enumerate(article):
@@ -144,8 +41,10 @@ def create_co_matrix(corpus, vocab):
             window_size = randrange(1, 11)
 
             # Obtains context words.
-            pre_context = article[max(anchor_word_index - window_size, 0) : anchor_word_index]
-            post_context = article[min(anchor_word_index + 1, len(article)) : min(anchor_word_index + window_size + 1, len(article))]
+            pre_context = article[max(anchor_word_index - window_size, 0) : \
+                                  anchor_word_index]
+            post_context = article[min(anchor_word_index + 1, len(article)) : \
+                                   min(anchor_word_index + window_size + 1, len(article))]
             context_words = pre_context + post_context
 
             # Updates co-occurrence values in the matrix.
@@ -221,7 +120,7 @@ def get_vocab_and_ppmi_matrix():
     """
 
     # Loads the vocab and PPMI matrix if possible.
-    if os.path.isfile(FLAGS.vocab_path) and os.path.isfile(FLAGS.ppmi_matrix_path): 
+    if os.path.isfile(FLAGS.vocab_path) and os.path.isfile(FLAGS.ppmi_matrix_path):
         vocab = pickle.load(open(FLAGS.vocab_path, "rb"))
         ppmi_matrix = load_npz(FLAGS.ppmi_matrix_path)
         print("Loaded vocab and PPMI matrix.\n")
@@ -237,15 +136,18 @@ def get_vocab_and_ppmi_matrix():
         else:
             # Loads the corpus and vocab if possible.
             if os.path.isfile(FLAGS.corpus_path) and os.path.isfile(FLAGS.vocab_path):
-                corpus, vocab = load_corpus_and_vocab()
+                corpus, vocab = load_corpus_and_vocab(FLAGS.corpus_path,
+                                                      FLAGS.vocab_path,)
                 print("Loaded corpus and vocab.\n")
 
             # Creates the corpus and vocab.
             else:
                 print("Creating corpus and vocab...\n")
-                corpus, vocab = create_corpus_and_vocab()
+                corpus, vocab = create_corpus_and_vocab(FLAGS.data_path,
+                                                        FLAGS.corpus_path, FLAGS.vocab_path,
+                                                        FLAGS.num_articles, FLAGS.min_freq)
                 print("Done creating corpus and vocab.")
-            print("Length of vocab: {0}\n".format(len(vocab)))
+            print("Length of vocab: {}\n".format(len(vocab)))
 
             # Creates the co-occurrence matrix.
             print("Creating co-occurrence matrix...\n")
@@ -295,35 +197,33 @@ def n_dim_reduced_matrix(n_dim, matrix):
 def main():
     vocab, ppmi_matrix = get_vocab_and_ppmi_matrix()
     _, reduced_matrix = n_dim_reduced_matrix(80, ppmi_matrix)
-    
+
     reversed_vocab = dict(zip(vocab.values(), vocab.keys()))
+
+    top30_words_men = n_closest_words("men", 30, reduced_matrix, vocab, reversed_vocab)
+    top30_words_women = n_closest_words("women", 30, reduced_matrix, vocab, reversed_vocab)
+
+    print("Top 30 Words Associated with MEN: " + str(top30_words_men))
+    print("Top 30 Words Associated with WOMEN: " + str(top30_words_women))
 
 #    x = np.arange(2, 222)
 #    y = np.zeros(x.size)
 #    for ind, dim in enumerate(x):
 #        print("Calculating {}-dimension reduction".format(dim))
 #        svd, _ = n_dim_reduced_matrix(dim, ppmi_matrix)
-#        y[ind] = svd.explained_variance_ratio_.sum() 
+#        y[ind] = svd.explained_variance_ratio_.sum()
 #
 #    fig = plt.figure()
 #    ax =  plt.axes()
 #    ax.plot(x, y)
 #    plt.savefig("variance.png")
 
-    
 #    men_row = reduced_matrix[vocab["men"]]
 #    women_row = reduced_matrix[vocab["women"]]
 #    leader_row = reduced_matrix[vocab["leader"]]
 #    leaders_row = reduced_matrix[vocab["leaders"]]
 #    print(dist(men_row, leader_row), dist(women_row, leader_row))
 #    print(dist(men_row, leaders_row), dist(women_row, leaders_row))
-
-    top30_words_men = n_closest_words("men", 30, reduced_matrix, vocab, reversed_vocab)
-    top30_words_women = n_closest_words("women", 30, reduced_matrix, vocab, reversed_vocab)
-
-    print("Top 30 Words Associated with 'MEN': " + str(top30_words_men))
-    print("Top 30 Words Associated with 'WOMEN': " + str(top30_words_women))
-    
 #    vis_matrix = n_dim_reduced_matrix(2, ppmi_matrix)
 #    men = vis_matrix[vocab["men"]]
 #    women = vis_matrix[vocab["women"]]
@@ -364,26 +264,23 @@ if __name__ == "__main__":
                         type=str, help="Path to dataset \
                                         (default: /hdd0/datasets/fairness/articles.csv)")
 
-    parser.add_argument("--save_dir", default="saved", type=str,
-                        help="Path to save dir (default: saved)")
-
-    parser.add_argument("--corpus_path", default="saved/corpus.pickle", type=str,
+    parser.add_argument("--corpus_path", default="../saved/corpus.pickle", type=str,
                         help="Path to vocab saved as a .pickle file \
                               (default: saved/corpus.pickle)")
 
-    parser.add_argument("--vocab_path", default="saved/vocab.pickle", type=str,
+    parser.add_argument("--vocab_path", default="../saved/vocab.pickle", type=str,
                         help="Path to vocab saved as a .pickle file \
-                              (default: saved/vocab.pickle)")
+                              (default: ../saved/vocab.pickle)")
 
-    parser.add_argument("--co_matrix_path", default="saved/co_matrix.npz", type=str,
+    parser.add_argument("--co_matrix_path", default="../saved/svd/co_matrix.npz", type=str,
                         help="Path to co-occurrence matrix saved as a .npz file \
-                              (default: saved/co_matrix.npz)")
+                              (default: ../saved/svd/co_matrix.npz)")
 
-    parser.add_argument("--ppmi_matrix_path", default="saved/ppmi_matrix.npz", type=str,
+    parser.add_argument("--ppmi_matrix_path", default="../saved/svd/ppmi_matrix.npz", type=str,
                         help="Path to PPMI matrix saved as a .npz file \
-                              (default: saved/ppmi_matrix.npz)")
-    
-    # Set arguments as FLAGS
-    FLAGS, unparsed = parser.parse_known_args()
+                              (default: ../saved/svd/ppmi_matrix.npz)")
+
+    # Sets arguments as FLAGS
+    FLAGS, _ = parser.parse_known_args()
 
     main()

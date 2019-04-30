@@ -7,19 +7,19 @@ import operator
 model = Sequential([
     Dense(32, input_shape=(11231,)),
     Dense(11231),
-    Activation('softmax')
+    Activation("softmax")
 ])
 
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
 model.summary()
 
-model.load_weights('weights.h5')
+model.load_weights("weights.h5")
 
 weights = model.layers[1].get_weights()
 vectors = weights[0] + weights[1]
 vectors = vectors.transpose()
 
-vocab = pickle.load(open('vocab.pickle', 'rb'))
+vocab = pickle.load(open("vocab.pickle", "rb"))
 
 def euclidean_dist(vec1, vec2):
     return np.sqrt(np.sum((vec1-vec2)**2))
