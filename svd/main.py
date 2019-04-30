@@ -123,7 +123,8 @@ def get_vocab_and_ppmi_matrix():
     if os.path.isfile(FLAGS.vocab_path) and os.path.isfile(FLAGS.ppmi_matrix_path):
         vocab = pickle.load(open(FLAGS.vocab_path, "rb"))
         ppmi_matrix = load_npz(FLAGS.ppmi_matrix_path)
-        print("Loaded vocab and PPMI matrix.\n")
+        print("Loaded vocab and PPMI matrix.")
+        print("Length of vocab: {}\n".format(len(vocab)))
 
     # Creates the PPMI matrix.
     else:
@@ -147,6 +148,7 @@ def get_vocab_and_ppmi_matrix():
                                                         FLAGS.corpus_path, FLAGS.vocab_path,
                                                         FLAGS.num_articles, FLAGS.min_freq)
                 print("Done creating corpus and vocab.")
+
             print("Length of vocab: {}\n".format(len(vocab)))
 
             # Creates the co-occurrence matrix.

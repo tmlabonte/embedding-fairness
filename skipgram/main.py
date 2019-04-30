@@ -43,10 +43,10 @@ def create_train_set(corpus, vocab):
                                   anchor_word_index]
             post_context = article[min(anchor_word_index + 1, len(article)) : \
                                    min(anchor_word_index + window_size + 1, len(article))]
-            context_words = pre_context + post_context
+            context = pre_context + post_context
 
             # Update training set values
-            for context_word in context_words:
+            for context_word in context:
                 anchor_words.append(vocab[anchor_word])
                 context_words.append(vocab[context_word])
 
@@ -68,7 +68,9 @@ def get_vocab_and_train_set():
     if os.path.isfile(FLAGS.vocab_path) and os.path.isfile(FLAGS.train_path):
         vocab = pickle.load(open(FLAGS.vocab_path, "rb"))
         train = pickle.load(open(FLAGS.train_path, "rb"))
-        print("Loaded vocab and training set.\n")
+        print("Loaded vocab and training set.")
+        print("Length of vocab: {}".format(len(vocab)))
+        print("Length of train set: {}\n".format(len(train[0])))
 
     # Creates the training set.
     else:
@@ -76,7 +78,7 @@ def get_vocab_and_train_set():
         if os.path.isfile(FLAGS.corpus_path) and os.path.isfile(FLAGS.vocab_path):
             corpus, vocab = load_corpus_and_vocab(FLAGS.corpus_path,
                                                   FLAGS.vocab_path,)
-            print("Loaded corpus and vocab.\n")
+            print("Loaded corpus and vocab.")
 
         # Creates the corpus and vocab.
         else:
@@ -85,7 +87,8 @@ def get_vocab_and_train_set():
                                                     FLAGS.corpus_path, FLAGS.vocab_path,
                                                     FLAGS.num_articles, FLAGS.min_freq)
             print("Done creating corpus and vocab.")
-        print("Length of vocab: {}\n".format(len(vocab)))
+        print("Length of vocab: {}".format(len(vocab)))
+        print("Length of train set: {}\n".format(len(train[0])))
 
         # Creates the training set
         print("Creating training set...\n")
@@ -115,7 +118,7 @@ def train_model(model, train, vocab_size):
     """ Trains the model. """
 
     # Calculates the number of batches per epoch
-    num_batches = math.ceil(len(train) / FLAGS.batch_size)
+    num_batches = math.ceil(len(train[0]) / FLAGS.batch_size)
 
     # Halves the dataset into data and labels
     anchors = train[0]
@@ -144,7 +147,7 @@ def train_model(model, train, vocab_size):
 
         # Prints progress and saves weights
         print("----EPOCH {} COMPLETED----".format(epoch))
-        model.save_weights("weights{}.h5".format(epoch))
+        model.save_weights("../saved/skipgram/weights/weights{}.h5".format(epoch))
 
     return model
 
