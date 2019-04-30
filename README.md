@@ -16,8 +16,9 @@ The skipgram technique involves a neural network which attempts to predict conte
 ### Part 3: Bias analysis results
 I analyzed bias using the Euclidean/cosine distance between word vectors. A sensitive word is considered unbiased if it is equidistant from the sensitive classes in the vector space. As my results showed, this dataset is heavily biased, with extremely negative non-gendered words close to both "men" and "women". Here is a selection of the top closest words to "men" and "women" using the SVD model with 80 dimensions:
 
-men: male, young, boy, girl, alone, youth, teens, brutally, taken, lives, robbed, wives, witnessed
-women: bullied, male, female, bisexual, trans, genital, young, lesbian, sex, disabilities, unwanted, abused
+men: male, young, boy, girl, **alone**, youth, teens, **brutally**, taken, lives, **robbed**, wives, witnessed
+
+women: **bullied**, male, female, **bisexual**, **trans**, **genital**, young, **lesbian**, **sex**, **disabilities**, **unwanted**, **abused**
 
 ### Part 4: Debiasing
 During my initial attempt at debiasing, I studied hard and soft debiasing as mentioned in the first paper. This involves creating an optimization problem over the weights matrix where we want to balance centering sensitive words within sensitive classes (e.g., non-gendered words within gender classes) and preserving the original word embeddings (e.g., we want the word "president" to be equidistant from "man" and "woman", but we also want "president" to remain close to "vice-president"). I'm also interested in how we can use regularization to enforce a fairness constraint during the training process.
