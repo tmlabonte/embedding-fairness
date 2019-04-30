@@ -1,0 +1,4 @@
+*.pickle
+*.npz
+*.png
+*.h5
