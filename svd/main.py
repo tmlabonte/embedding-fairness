@@ -66,23 +66,26 @@ def create_ppmi_matrix(co_matrix):
         is the PPMI of words with vocab index i and j.
 
         PPMI = max( Pr[i U j] / (Pr[i] * Pr[j]), 0 )
+        Furthermore, we "smooth" the distribution by
+        Pr[j] = (#j)^a / sum[(#w)^a].
+        Levy and Goldberg 2015 suggest a=0.75.
     """
 
-    # Converts co-occurrence matrix to dok_matrix
-    # format for easier indexing.
+    # Converts co-occurrence matrix to dok_matrix format for easier indexing.
     co_matrix = co_matrix.todok()
 
     # Sets size and creates matrix.
     size = co_matrix.shape[0]
     ppmi_matrix = dok_matrix((size, size))
+    nonzero = co_matrix.nonzero()
 
     # Computes total, row, and column sums.
     co_total = co_matrix.sum()
+    co_total_smoothed = np.sum([math.pow(co_matrix[i, j], 0.75) for (i, j) in zip(*nonzero)])
     co_row_sum = co_matrix.sum(axis=1)
     co_col_sum = co_matrix.sum(axis=0).transpose()
 
     # Iterates over all nonzero entries in the co-occurrence matrix.
-    nonzero = co_matrix.nonzero()
     for entry_index, (anchor_word_index, context_word_index) in enumerate(zip(*nonzero)):
         # Prints progress
         if entry_index % 1e5 == 0:
@@ -91,11 +94,12 @@ def create_ppmi_matrix(co_matrix):
         # Gets total occurrences of each word.
         anchor_word_sum = co_row_sum.item(anchor_word_index)
         context_word_sum = co_col_sum.item(context_word_index)
+        context_word_sum_smoothed = math.pow(context_word_sum, 0.75)
 
         # Calculates probabilities.
         joint_prob = co_matrix[anchor_word_index, context_word_index] / co_total
         anchor_word_marginal_prob = anchor_word_sum / co_total
-        context_word_marginal_prob = context_word_sum / co_total
+        context_word_marginal_prob = context_word_sum_smoothed / co_total_smoothed
 
         # Calculates PPMI.
         ratio = joint_prob / (anchor_word_marginal_prob * context_word_marginal_prob)
@@ -190,15 +194,17 @@ def n_dim_reduced_matrix(n_dim, matrix):
     """ Reduces dimensionality of the PPMI matrix via SVD. """
 
     # Instantiates an SVD and reduces the PPMI matrix.
+    print("Creating SVD matrix...")
     svd = TruncatedSVD(n_components=n_dim, random_state=1)
     svd.fit(matrix)
     reduced_matrix = svd.transform(matrix)
+    print("Done creating SVD matrix.\n")
 
     return svd, reduced_matrix
 
 def main():
     vocab, ppmi_matrix = get_vocab_and_ppmi_matrix()
-    _, reduced_matrix = n_dim_reduced_matrix(80, ppmi_matrix)
+    _, reduced_matrix = n_dim_reduced_matrix(100, ppmi_matrix)
 
     reversed_vocab = dict(zip(vocab.values(), vocab.keys()))
 
