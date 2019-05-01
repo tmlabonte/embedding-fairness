@@ -123,44 +123,42 @@ def get_vocab_and_ppmi_matrix():
         Returns the vocab and PPMI matrix.
     """
 
-    # Loads the vocab and PPMI matrix if possible.
-    if os.path.isfile(FLAGS.vocab_path) and os.path.isfile(FLAGS.ppmi_matrix_path):
-        vocab = pickle.load(open(FLAGS.vocab_path, "rb"))
+    # Loads the corpus and vocab if possible.
+    if os.path.isfile(FLAGS.corpus_path) and os.path.isfile(FLAGS.vocab_path):
+        corpus, vocab = load_corpus_and_vocab(FLAGS.corpus_path,
+                                              FLAGS.vocab_path,)
+        print("Loaded corpus and vocab.")
+
+    # Creates the corpus and vocab.
+    else:
+        print("Creating corpus and vocab...\n")
+        corpus, vocab = create_corpus_and_vocab(FLAGS.data_path,
+                                                FLAGS.corpus_path, FLAGS.vocab_path,
+                                                FLAGS.num_articles, FLAGS.min_freq)
+        print("Done creating corpus and vocab.")
+
+    print("Length of vocab: {}\n".format(len(vocab)))
+
+
+    # Load the co-occurrence matrix if possible.
+    if os.path.isfile(FLAGS.co_matrix_path):
+        co_matrix = load_npz(FLAGS.co_matrix_path)
+        print("Loaded co-occurrence matrix.\n")
+
+    # Creates the co-occurrence matrix.
+    else:
+        print("Creating co-occurrence matrix...\n")
+        co_matrix = create_co_matrix(corpus, vocab)
+        print("Done creating co-occurrence matrix.\n")
+
+
+    # Loads the PPMI matrix if possible.
+    if os.path.isfile(FLAGS.ppmi_matrix_path):
         ppmi_matrix = load_npz(FLAGS.ppmi_matrix_path)
-        print("Loaded vocab and PPMI matrix.")
-        print("Length of vocab: {}\n".format(len(vocab)))
+        print("Loaded vocab and PPMI matrix.\n")
 
     # Creates the PPMI matrix.
     else:
-        # Load the co-occurrence matrix if possible.
-        if os.path.isfile(FLAGS.co_matrix_path):
-            co_matrix = load_npz(FLAGS.co_matrix_path)
-            print("Loaded co-occurrence matrix.\n")
-
-        # Creates the co-occurrence matrix.
-        else:
-            # Loads the corpus and vocab if possible.
-            if os.path.isfile(FLAGS.corpus_path) and os.path.isfile(FLAGS.vocab_path):
-                corpus, vocab = load_corpus_and_vocab(FLAGS.corpus_path,
-                                                      FLAGS.vocab_path,)
-                print("Loaded corpus and vocab.\n")
-
-            # Creates the corpus and vocab.
-            else:
-                print("Creating corpus and vocab...\n")
-                corpus, vocab = create_corpus_and_vocab(FLAGS.data_path,
-                                                        FLAGS.corpus_path, FLAGS.vocab_path,
-                                                        FLAGS.num_articles, FLAGS.min_freq)
-                print("Done creating corpus and vocab.")
-
-            print("Length of vocab: {}\n".format(len(vocab)))
-
-            # Creates the co-occurrence matrix.
-            print("Creating co-occurrence matrix...\n")
-            co_matrix = create_co_matrix(corpus, vocab)
-            print("Done creating co-occurrence matrix.\n")
-
-        # Creates the PPMI matrix.
         print("Creating PPMI matrix...\n")
         ppmi_matrix = create_ppmi_matrix(co_matrix)
         print("Done creating PPMI matrix.\n")

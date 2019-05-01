@@ -64,37 +64,34 @@ def get_vocab_and_train_set():
         Returns the vocab and training set.
     """
 
-    # Loads the vocab and training set if possible.
-    if os.path.isfile(FLAGS.vocab_path) and os.path.isfile(FLAGS.train_path):
-        vocab = pickle.load(open(FLAGS.vocab_path, "rb"))
+    # Loads the corpus and vocab if possible.
+    if os.path.isfile(FLAGS.corpus_path) and os.path.isfile(FLAGS.vocab_path):
+        corpus, vocab = load_corpus_and_vocab(FLAGS.corpus_path,
+                                              FLAGS.vocab_path,)
+        print("Loaded corpus and vocab.")
+
+    # Creates the corpus and vocab.
+    else:
+        print("Creating corpus and vocab...\n")
+        corpus, vocab = create_corpus_and_vocab(FLAGS.data_path,
+                                                FLAGS.corpus_path, FLAGS.vocab_path,
+                                                FLAGS.num_articles, FLAGS.min_freq)
+        print("Done creating corpus and vocab.")
+
+    print("Length of vocab: {}\n".format(len(vocab)))
+
+    # Loads the training set if possible.
+    if os.path.isfile(FLAGS.train_path):
         train = pickle.load(open(FLAGS.train_path, "rb"))
-        print("Loaded vocab and training set.")
-        print("Length of vocab: {}".format(len(vocab)))
-        print("Length of train set: {}\n".format(len(train[0])))
+        print("Loaded training set.")
 
     # Creates the training set.
     else:
-        # Loads the corpus and vocab if possible.
-        if os.path.isfile(FLAGS.corpus_path) and os.path.isfile(FLAGS.vocab_path):
-            corpus, vocab = load_corpus_and_vocab(FLAGS.corpus_path,
-                                                  FLAGS.vocab_path,)
-            print("Loaded corpus and vocab.")
-
-        # Creates the corpus and vocab.
-        else:
-            print("Creating corpus and vocab...\n")
-            corpus, vocab = create_corpus_and_vocab(FLAGS.data_path,
-                                                    FLAGS.corpus_path, FLAGS.vocab_path,
-                                                    FLAGS.num_articles, FLAGS.min_freq)
-            print("Done creating corpus and vocab.")
-        print("Length of vocab: {}".format(len(vocab)))
-        print("Length of train set: {}\n".format(len(train[0])))
-
-        # Creates the training set
         print("Creating training set...\n")
         train = create_train_set(corpus, vocab)
-        print("Length of training set: {}".format(len(train[0])))
-        print("Done creating training set.\n")
+        print("Done creating training set.")
+
+    print("Length of training set: {}\n".format(len(train[0])))
 
     return vocab, train
 
