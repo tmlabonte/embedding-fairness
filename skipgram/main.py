@@ -39,15 +39,15 @@ def create_negative_sampling_weights(corpus, vocab):
 
     # Computes total and row sums with smoothing.
     co_row_sum = co_matrix.sum(axis=1)
-    co_row_sum_smoothed = [math.pow(co_row_sum.item(i), 0.75) for i in co_row_sum]
+    co_row_sum_smoothed = [math.pow(count[0], 0.75) for count in co_row_sum]
     co_total_smoothed = np.sum(co_row_sum_smoothed)
 
     # Creates the weights list.
-    weights = [count / total for (count, total) in zip(co_row_sum_smoothed, co_total_smoothed)]
+    weights = [count / co_total_smoothed for count in co_row_sum_smoothed]
 
     # Ensures weights are correct and saves them as a .pickle file.
     assert abs(np.sum(weights) - 1.) < 0.01
-    pickle.dump(weights, open(FLAGS.weights_path, "wb"))
+    pickle.dump(weights, open(FLAGS.negative_weights_path, "wb"))
 
     return weights
 
@@ -155,7 +155,7 @@ def get_vocab_and_data():
 
     return vocab, data
 
-def train_model(model, data, vocab_size):
+def train_model(model, data):
     """ Trains the model. """
 
     # Separates anchors, contexts, and labels from data
