@@ -89,7 +89,7 @@ def get_vocab_and_ppmi_matrix():
                                                 FLAGS.num_articles, FLAGS.min_freq)
         print("Done creating corpus and vocab.")
 
-    print("Length of vocab: {}\n".format(len(vocab)))
+    print("Length of vocab: {:,}\n".format(len(vocab)))
 
 
     # Load the co-occurrence matrix if possible.

@@ -75,7 +75,7 @@ def create_data(corpus, vocab):
     for article_index, article in enumerate(corpus):
         # Prints progress.
         if article_index % 100 == 0:
-            print("Processing article {}/{}".format(article_index, FLAGS.num_articles))
+            print("Processing article {:,}/{:,}".format(article_index, FLAGS.num_articles))
 
         # Converts article to list of words for processing.
         article = article.split()
@@ -103,12 +103,11 @@ def create_data(corpus, vocab):
 
             # Updates data values.
             for negative_word_index in negative_word_indices:
-                datum = ((anchor_word_index, negative_word_index), 0)
+                datum = ((vocab[anchor_word], negative_word_index), 0)
                 data.append(datum)
 
     # Saves data as a .pickle file.
     pickle.dump(data, open(FLAGS.data_path, "wb"))
-
     return data
 
 def get_vocab_and_data():
@@ -132,7 +131,7 @@ def get_vocab_and_data():
                                                 FLAGS.num_articles, FLAGS.min_freq)
         print("Done creating corpus and vocab.")
 
-    print("Length of vocab: {}\n".format(len(vocab)))
+    print("Length of vocab: {:,}\n".format(len(vocab)))
 
     # Loads the data if possible.
     if os.path.isfile(FLAGS.data_path):
@@ -145,7 +144,7 @@ def get_vocab_and_data():
         data = create_data(corpus, vocab)
         print("Done creating data.")
 
-    print("Length of data: {:,}\n".format(len(data[0])))
+    print("Length of data: {:,}\n".format(len(data)))
 
     # Converts data to an np array.
     data = np.asarray(data)
@@ -157,7 +156,7 @@ def train_model(model, data):
 
     # Separates anchors, contexts, and labels from data
     input_tuples = [datum[0] for datum in data]
-    (anchor_indices, context_indices) = [(tup[0], tup[1]) for tup in input_tuples]
+    (anchor_indices, context_indices) = [tup for tup in zip(*input_tuples)]
     labels = [datum[1] for datum in data]
     input_pairs = {"anchor_index": anchor_indices,
                    "context_index": context_indices}

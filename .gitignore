@@ -3,3 +3,4 @@
 *.png
 *.h5
 *.csv
+__pycache__
