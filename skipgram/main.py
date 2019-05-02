@@ -5,28 +5,76 @@ import pickle
 from random import randrange
 import sys
 
+from keras.callbacks import ModelCheckpoint
 from keras.layers import Dense, Activation
 from keras.models import Sequential
 from mpu.ml import indices2one_hot
 import numpy as np
+from scipy.sparse import load_npz
 
 sys.path.append("..")
-from utils import load_corpus_and_vocab, create_corpus_and_vocab
+from utils import load_corpus_and_vocab, create_corpus_and_vocab, create_co_matrix
+from model import create_model
 
-def create_train_set(corpus, vocab):
-    """ Creates the training set.
+def create_negative_sampling_weights(corpus, vocab):
+    """ Creates a list of negative sampling weights, where weights[i] is the
+        probability that the word with index i will be selected.
 
-        Returns a tuple of lists where the first is the anchor
-        word indices and the second is the context word indices.
+        Negative samples are sampled according to the smoothed unigram
+        distribution: Pr[c] = (#c)^a / sum[(#w)^a]. Levy and Goldberg 2015
+        suggest a=0.75.
+    """
+
+    # Load the co-occurrence matrix if possible.
+    if os.path.isfile(FLAGS.co_matrix_path):
+        co_matrix = load_npz(FLAGS.co_matrix_path)
+        print("Loaded co-occurrence matrix.\n")
+
+    # Creates the co-occurrence matrix.
+    else:
+        print("Creating co-occurrence matrix...\n")
+        co_matrix = create_co_matrix(corpus, vocab, FLAGS.num_articles,
+                                     FLAGS.co_matrix_path)
+        print("Done creating co-occurrence matrix.\n")
+
+    # Computes total and row sums with smoothing.
+    co_row_sum = co_matrix.sum(axis=1)
+    co_row_sum_smoothed = [math.pow(co_row_sum.item(i), 0.75) for i in co_row_sum]
+    co_total_smoothed = np.sum(co_row_sum_smoothed)
+
+    # Creates the weights list.
+    weights = [count / total for (count, total) in zip(co_row_sum_smoothed, co_total_smoothed)]
+
+    # Ensures weights are correct and saves them as a .pickle file.
+    assert abs(np.sum(weights) - 1.) < 0.01
+    pickle.dump(weights, open(FLAGS.weights_path, "wb"))
+
+    return weights
+
+def create_data(corpus, vocab):
+    """ Creates the dataset.
+
+        Returns a list of the form [((anchor_word, context_word), label)]
+        where the label tells whether the context word is a real context word
+        or a negatively sampled one.
 
         Note that the context window size is sampled ~Unif(1, 10).
         This has the same effect as harmonic weighting.
     """
 
-    anchor_words = []
-    context_words = []
+    # Loads the negative sampling weights if possible.
+    if os.path.isfile(FLAGS.negative_weights_path):
+        weights = pickle.load(open(FLAGS.negative_weights_path, "rb"))
+        print("Loaded negative sampling weights.\n")
 
-    # Iterates through every article in the corpus
+    # Creates the negative sampling weights.
+    else:
+        print("Creating negative sampling weights...\n")
+        weights = create_negative_sampling_weights(corpus, vocab)
+        print("Done creating negative sampling weights.\n")
+
+    data = []
+    # Creates data from corpus.
     for article_index, article in enumerate(corpus):
         # Prints progress.
         if article_index % 100 == 0:
@@ -43,25 +91,34 @@ def create_train_set(corpus, vocab):
                                   anchor_word_index]
             post_context = article[min(anchor_word_index + 1, len(article)) : \
                                    min(anchor_word_index + window_size + 1, len(article))]
-            context = pre_context + post_context
+            context_words = pre_context + post_context
 
-            # Update training set values
-            for context_word in context:
-                anchor_words.append(vocab[anchor_word])
-                context_words.append(vocab[context_word])
+            # Updates data values.
+            for context_word in context_words:
+                datum = ((vocab[anchor_word], vocab[context_word]), 1)
+                data.append(datum)
 
-    assert len(anchor_words) == len(context_words)
+            # Samples negative words.
+            negative_word_indices = np.random.choice(a=len(vocab),
+                                                     size=FLAGS.num_negative_samples,
+                                                     replace=False,
+                                                     p=weights)
 
-    # Saves training set as a .pickle file
-    train = (anchor_words, context_words)
-    pickle.dump(train, open(FLAGS.train_path, "wb"))
-    return train
+            # Updates data values.
+            for negative_word_index in negative_word_indices:
+                datum = ((anchor_word_index, negative_word_index), 0)
+                data.append(datum)
 
-def get_vocab_and_train_set():
+    # Saves data as a .pickle file.
+    pickle.dump(data, open(FLAGS.data_path, "wb"))
+
+    return data
+
+def get_vocab_and_data():
     """ Loads and/or creates the corpus and vocab
-        and the training set (anchor words and context words).
+        and the data (anchor words, context words, and label).
 
-        Returns the vocab and training set.
+        Returns the vocab and data.
     """
 
     # Loads the corpus and vocab if possible.
@@ -73,85 +130,84 @@ def get_vocab_and_train_set():
     # Creates the corpus and vocab.
     else:
         print("Creating corpus and vocab...\n")
-        corpus, vocab = create_corpus_and_vocab(FLAGS.data_path,
+        corpus, vocab = create_corpus_and_vocab(FLAGS.csv_path,
                                                 FLAGS.corpus_path, FLAGS.vocab_path,
                                                 FLAGS.num_articles, FLAGS.min_freq)
         print("Done creating corpus and vocab.")
 
     print("Length of vocab: {}\n".format(len(vocab)))
 
-    # Loads the training set if possible.
-    if os.path.isfile(FLAGS.train_path):
-        train = pickle.load(open(FLAGS.train_path, "rb"))
-        print("Loaded training set.")
+    # Loads the data if possible.
+    if os.path.isfile(FLAGS.data_path):
+        data = pickle.load(open(FLAGS.data_path, "rb"))
+        print("Loaded data.")
 
-    # Creates the training set.
+    # Creates the data.
     else:
-        print("Creating training set...\n")
-        train = create_train_set(corpus, vocab)
-        print("Done creating training set.")
+        print("Creating data...\n")
+        data = create_data(corpus, vocab)
+        print("Done creating data.")
 
-    print("Length of training set: {}\n".format(len(train[0])))
+    print("Length of data: {:,}\n".format(len(data[0])))
 
-    return vocab, train
+    # Converts data to an np array.
+    data = np.asarray(data)
 
-def create_model(net_size, input_size):
-    """ Defines a one-layer Keras model with
-        softmax activation and categorical loss.
-    """
+    return vocab, data
 
-    model = Sequential([
-        Dense(net_size, input_shape=(input_size,)),
-        Dense(input_size),
-        Activation("softmax")
-    ])
-
-    model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
-    model.summary()
-
-    return model
-
-def train_model(model, train, vocab_size):
+def train_model(model, data, vocab_size):
     """ Trains the model. """
 
-    # Calculates the number of batches per epoch
-    num_batches = math.ceil(len(train[0]) / FLAGS.batch_size)
+    # Separates anchors, contexts, and labels from data
+    input_tuples = [datum[0] for datum in data]
+    anchor_indices = [tup[0] for tup in input_tuples]
+    context_indices = [tup[1] for tup in input_tuples]
+    labels = [datum[1] for datum in data]
+    input_pairs = {"anchor_index": anchor_indices,
+                   "context_index": context_indices}
 
-    # Halves the dataset into data and labels
-    anchors = train[0]
-    contexts = train[1]
+    # Creates checkpoint callback
+    checkpoint = ModelCheckpoint(filepath=FLAGS.weights_path,
+                                 save_weights_only=True)
 
-    # Trains the model for the specified number of epochs
-    for epoch in range(1, FLAGS.epochs + 1):
-        # Creates batches of data for training
-        for batch_num in range(num_batches):
-            # Gets the batch from the dataset
-            batch_start = FLAGS.batch_size * batch_num
-            batch_end = FLAGS.batch_size * (batch_num + 1)
-            anchors_batch = anchors[batch_start : min(batch_end, len(anchors))]
-            contexts_batch = contexts[batch_start : min(batch_end, len(contexts))]
+    # Trains the model
+    model.fit(x=input_pairs, y=labels, validation_split=0.2, epochs=FLAGS.epochs,
+              batch_size=FLAGS.batch_size, callbacks=[checkpoint])
 
-            # Converts batch to one hot vectors
-            anchors_batch = indices2one_hot(anchors_batch, vocab_size)
-            contexts_batch = indices2one_hot(contexts_batch, vocab_size)
+    # # Calculates the number of batches per epoch
+    # num_batches = math.ceil(len(data) / FLAGS.batch_size)
 
-            # Converts batch to np arrays
-            anchors_batch = np.asarray(anchors_batch)
-            contexts_batch = np.asarray(contexts_batch)
+    # # Trains the model for the specified number of epochs
+    # for epoch in range(1, FLAGS.epochs + 1):
+    #     # Creates batches of data for training
+    #     for batch_num in range(num_batches):
+    #         # Gets the batch from the dataset
+    #         batch_start = FLAGS.batch_size * batch_num
+    #         batch_end = FLAGS.batch_size * (batch_num + 1)
+    #         anchors_batch = anchors[batch_start : min(batch_end, len(anchors))]
+    #         contexts_batch = contexts[batch_start : min(batch_end, len(contexts))]
 
-            # Fits model on batch
-            model.fit(anchors_batch, contexts_batch)
+    #         # Converts batch to one hot vectors
+    #         anchors_batch = indices2one_hot(anchors_batch, vocab_size)
+    #         contexts_batch = indices2one_hot(contexts_batch, vocab_size)
 
-        # Prints progress and saves weights
-        print("----EPOCH {} COMPLETED----".format(epoch))
-        model.save_weights("../saved/skipgram/weights/weights{}.h5".format(epoch))
+    #         # Converts batch to np arrays
+    #         anchors_batch = np.asarray(anchors_batch)
+    #         contexts_batch = np.asarray(contexts_batch)
+
+    #         # Fits model on batch
+    #         model.fit(anchors_batch, contexts_batch)
+
+    #     # Prints progress and saves weights
+    #     print("----EPOCH {} COMPLETED----".format(epoch))
+    #     model.save_weights(FLAGS.weights_folder + "/weights{}.h5".format(epoch))
 
     return model
 
 def main():
-    vocab, train = get_vocab_and_train_set()
-    model = create_model(FLAGS.net_size, input_size=len(vocab))
-    model = train_model(model, train, vocab_size=len(vocab))
+    vocab, data = get_vocab_and_data()
+    model = create_model(vector_dim=FLAGS.vector_dim, vocab_size=len(vocab))
+    model = train_model(model, data, vocab_size=len(vocab))
 
 if __name__ == "__main__":
     # Instantiates an argument parser
@@ -168,24 +224,45 @@ if __name__ == "__main__":
                         help="Number of articles to process \
                               (default: 50,000, max: 50,000)")
 
-    parser.add_argument("--data_path", default="/hdd0/datasets/fairness/articles.csv",
+    parser.add_argument("--csv_path", default="/hdd0/datasets/fairness/articles.csv",
                         type=str, help="Path to dataset \
                                         (default: /hdd0/datasets/fairness/articles.csv)")
 
-    parser.add_argument("--corpus_path", default="../saved/corpus.pickle", type=str,
-                        help="Path to vocab saved as a .pickle file \
-                              (default: saved/corpus.pickle)")
+    parser.add_argument("--corpus_path", default="../saved/corpus.pickle",
+                        type=str, help="Path to vocab saved as a .pickle file \
+                                        (default: saved/corpus.pickle)")
 
-    parser.add_argument("--vocab_path", default="../saved/vocab.pickle", type=str,
-                        help="Path to vocab saved as a .pickle file \
-                              (default: ../saved/vocab.pickle)")
+    parser.add_argument("--vocab_path", default="../saved/vocab.pickle",
+                        type=str, help="Path to vocab saved as a .pickle file \
+                                        (default: ../saved/vocab.pickle)")
 
-    parser.add_argument("--train_path", default="../saved/skipgram/train.pickle", type=str,
-                        help="Path to training set saved as a .pickle file \
-                              (default: ../saved/skipgram/train.pickle)")
+    parser.add_argument("--co_matrix_path", default="../saved/co_matrix.npz",
+                        type=str, help="Path to co-occurrence matrix saved as \
+                                        a .npz file (default: ../saved/co_matrix.npz)")
 
-    parser.add_argument("--net_size", default=32, type=int,
-                        help="Neural network size (default: 32)")
+    parser.add_argument("--negative_weights_path",
+                        default="../saved/skipgram/negative_weights_path.pickle",
+                        type=str, help="Path to negative sampling weights list \
+                                        saved as a .pickle file \
+                                        (default: ../saved/skipgram/\
+                                        negative_weights_path.pickle)")
+
+    parser.add_argument("--data_path", default="../saved/skipgram/data.pickle",
+                        type=str, help="Path to data saved as a .pickle file \
+                                        (default: ../saved/skipgram/data.pickle)")
+
+    parser.add_argument("--weights_path",
+                        default="../saved/skipgram/weights/weights-{epoch:02d}-{val_acc:.2f}.hdf5",
+                        type=str, help="Path to network weights folder \
+                                        (default: ../saved/skipgram/weights/\
+                                        weights-{epoch:02d}-{val_acc:.2f}.hdf5)")
+
+    parser.add_argument("--vector_dim", default=100, type=int,
+                        help="Embedding vector size (default: 100)")
+
+    parser.add_argument("--num_negative_samples", default=5, type=int,
+                        help="Number of negative samples per occurrence of \
+                              a positive sample in the data (default: 5)")
 
     parser.add_argument("--epochs", default=10, type=int,
                         help="Num of epochs for training (default: 10)")

@@ -1,9 +1,13 @@
-import re
-import string
 import os
 import pickle
-from pandas import read_csv
+from random import randrange
+import re
+import string
+
 from nltk.corpus import stopwords
+import numpy as np
+from pandas import read_csv
+from scipy.sparse import dok_matrix, save_npz
 
 def article_preprocess(article):
     """ Preprocesses a raw article."""
@@ -67,21 +71,21 @@ def corpus_preprocess(corpus, min_freq):
 
     return corpus
 
-def create_corpus_and_vocab(data_path, corpus_path, vocab_path,
+def create_corpus_and_vocab(csv_path, corpus_path, vocab_path,
                             num_articles, min_freq):
-    """ Creates the corpus and vocab from the dataset.
+    """ Creates the corpus and vocab from the csv file.
 
         Extracts and preprocesses articles.
     """
 
-    # Reads the dataset into a Pandas DataFrame.
-    print("Loading data...")
-    df = read_csv(data_path, engine="python",
+    # Reads the csv file into a Pandas DataFrame.
+    print("Loading csv...")
+    df = read_csv(csv_path, engine="python",
                   encoding="utf-8", error_bad_lines=False)
 
     # Retrieves the first NUM_ARTICLES entries in the content column.
     corpus = list(df["content"])[:num_articles]
-    print("Done loading data.\n")
+    print("Done loading csv.\n")
 
     # Preprocesses corpus.
     print("Preprocessing corpus...")
@@ -106,8 +110,68 @@ def create_corpus_and_vocab(data_path, corpus_path, vocab_path,
 
     return corpus, vocab
 
+def create_co_matrix(corpus, vocab, num_articles, co_matrix_path):
+    """ Creates the co-occurrence matrix of a corpus.
+
+        Returns a scipy.sparse.csr_matrix where matrix[i, j]
+        is the frequency that words with vocab index i and j
+        occur in each others" contexts.
+
+        Note that the context window size is sampled ~Unif(1, 10).
+        This has the same effect as harmonic weighting.
+    """
+
+    # Sets size and creates matrix.
+    size = len(vocab)
+    matrix = dok_matrix((size, size), np.dtype(int))
+
+    # Iterates through every article in the corpus
+    for article_index, article in enumerate(corpus):
+        # Prints progress.
+        if article_index % 100 == 0:
+            print("Processing article {}/{}".format(article_index, num_articles))
+
+        # Converts article to list of words for processing.
+        article = article.split()
+        for anchor_word_index, anchor_word in enumerate(article):
+            # Samples window size.
+            window_size = randrange(1, 11)
+
+            # Obtains context words.
+            pre_context = article[max(anchor_word_index - window_size, 0) : \
+                                  anchor_word_index]
+            post_context = article[min(anchor_word_index + 1, len(article)) : \
+                                   min(anchor_word_index + window_size + 1, len(article))]
+            context_words = pre_context + post_context
+
+            # Updates co-occurrence values in the matrix.
+            for context_word in context_words:
+                matrix[vocab[anchor_word], vocab[context_word]] += 1
+
+    # Converts co-occurrence matrix to csr_matrix format and saves it as a .npz file.
+    matrix = matrix.tocsr()
+    assert matrix.sum(axis=1).item(543) == matrix.sum(axis=0).item(543)
+    save_npz(co_matrix_path, matrix)
+    print("Saved co-occurrence matrix.")
+
+    return matrix
+
 def load_corpus_and_vocab(corpus_path, vocab_path):
     """ Loads the corpus and vocab"""
 
     return pickle.load(open(corpus_path, "rb")), \
            pickle.load(open(vocab_path, "rb"))
+
+def train_valid_test_split(data):
+    """ Splits the dataset into training, validation, and testing
+        sets with a 70/10/20 split.
+    """
+
+    # Splits the training set.
+    splits = [int(.7 * len(data)), int(.8 * len(data)), len(data)]
+    result = np.split(data, splits)
+
+    # Extracts new datasets.
+    train, valid, test = result[0], result[1], result[2]
+
+    return train, valid, test
