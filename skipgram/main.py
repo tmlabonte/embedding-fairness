@@ -6,15 +6,12 @@ from random import randrange
 import sys
 
 from keras.callbacks import ModelCheckpoint
-from keras.layers import Dense, Activation
-from keras.models import Sequential
-from mpu.ml import indices2one_hot
 import numpy as np
 from scipy.sparse import load_npz
 
 sys.path.append("..")
-from utils import load_corpus_and_vocab, create_corpus_and_vocab, create_co_matrix
 from model import create_model
+from utils import load_corpus_and_vocab, create_corpus_and_vocab, create_co_matrix
 
 def create_negative_sampling_weights(corpus, vocab):
     """ Creates a list of negative sampling weights, where weights[i] is the
@@ -160,8 +157,7 @@ def train_model(model, data):
 
     # Separates anchors, contexts, and labels from data
     input_tuples = [datum[0] for datum in data]
-    anchor_indices = [tup[0] for tup in input_tuples]
-    context_indices = [tup[1] for tup in input_tuples]
+    (anchor_indices, context_indices) = [(tup[0], tup[1]) for tup in input_tuples]
     labels = [datum[1] for datum in data]
     input_pairs = {"anchor_index": anchor_indices,
                    "context_index": context_indices}
@@ -207,7 +203,7 @@ def train_model(model, data):
 def main():
     vocab, data = get_vocab_and_data()
     model = create_model(vector_dim=FLAGS.vector_dim, vocab_size=len(vocab))
-    model = train_model(model, data, vocab_size=len(vocab))
+    model = train_model(model, data)
 
 if __name__ == "__main__":
     # Instantiates an argument parser

@@ -150,7 +150,6 @@ def create_co_matrix(corpus, vocab, num_articles, co_matrix_path):
 
     # Converts co-occurrence matrix to csr_matrix format and saves it as a .npz file.
     matrix = matrix.tocsr()
-    assert matrix.sum(axis=1).item(543) == matrix.sum(axis=0).item(543)
     save_npz(co_matrix_path, matrix)
     print("Saved co-occurrence matrix.")
 

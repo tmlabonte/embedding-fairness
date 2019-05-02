@@ -35,7 +35,7 @@ def create_ppmi_matrix(co_matrix):
     # Computes total and row sums with smoothing.
     co_total = co_matrix.sum()
     co_row_sum = co_matrix.sum(axis=1)
-    co_row_sum_smoothed = [math.pow(co_row_sum.item(i), 0.75) for i in co_row_sum]
+    co_row_sum_smoothed = [math.pow(count[0], 0.75) for count in co_row_sum]
     co_total_smoothed = np.sum(co_row_sum_smoothed)
 
     # Iterates over all nonzero entries in the co-occurrence matrix.
