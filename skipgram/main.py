@@ -70,8 +70,11 @@ def create_data(corpus, vocab):
         weights = create_negative_sampling_weights(corpus, vocab)
         print("Done creating negative sampling weights.\n")
 
-    data = []
-    # Creates data from corpus.
+    anchor_indices = []
+    context_indices = []
+    labels = []
+
+    # Creates dataset from corpus.
     for article_index, article in enumerate(corpus):
         # Prints progress.
         if article_index % 100 == 0:
@@ -79,21 +82,22 @@ def create_data(corpus, vocab):
 
         # Converts article to list of words for processing.
         article = article.split()
-        for anchor_word_index, anchor_word in enumerate(article):
+        for anchor_word_index_in_article, anchor_word in enumerate(article):
             # Samples window size.
             window_size = randrange(1, 11)
 
             # Obtains context words.
-            pre_context = article[max(anchor_word_index - window_size, 0) : \
-                                  anchor_word_index]
-            post_context = article[min(anchor_word_index + 1, len(article)) : \
-                                   min(anchor_word_index + window_size + 1, len(article))]
+            pre_context = article[max(anchor_word_index_in_article - window_size, 0) : \
+                                  anchor_word_index_in_article]
+            post_context = article[min(anchor_word_index_in_article + 1, len(article)) : \
+                                   min(anchor_word_index_in_article + window_size + 1, len(article))]
             context_words = pre_context + post_context
 
-            # Updates data values.
+            # Updates dataset values.
             for context_word in context_words:
-                datum = ((vocab[anchor_word], vocab[context_word]), 1)
-                data.append(datum)
+                anchor_indices.append(vocab[anchor_word])
+                context_indices.append(vocab[context_word])
+                labels.append(1)
 
             # Samples negative words.
             negative_word_indices = np.random.choice(a=len(vocab),
@@ -101,14 +105,18 @@ def create_data(corpus, vocab):
                                                      replace=False,
                                                      p=weights)
 
-            # Updates data values.
+            # Updates dataset values.
             for negative_word_index in negative_word_indices:
-                datum = ((vocab[anchor_word], negative_word_index), 0)
-                data.append(datum)
+                anchor_indices.append(vocab[anchor_word])
+                context_indices.append(negative_word_index)
+                labels.append(0)
 
-    # Saves data as a .pickle file.
-    pickle.dump(data, open(FLAGS.data_path, "wb"))
-    return data
+    # Saves dataset as .pickle files.
+    pickle.dump(anchor_indices, open(FLAGS.anchor_indices_path, "wb"))
+    pickle.dump(context_indices, open(FLAGS.context_indices_path, "wb"))
+    pickle.dump(labels, open(FLAGS.labels_path, "wb"))
+
+    return anchor_indices, context_indices, labels
 
 def get_vocab_and_data():
     """ Loads and/or creates the corpus and vocab
@@ -133,31 +141,30 @@ def get_vocab_and_data():
 
     print("Length of vocab: {:,}\n".format(len(vocab)))
 
-    # Loads the data if possible.
+    # Loads the dataset if possible.
     if os.path.isfile(FLAGS.data_path):
         data = pickle.load(open(FLAGS.data_path, "rb"))
         print("Loaded data.")
 
-    # Creates the data.
+    # Creates the dataset.
     else:
         print("Creating data...\n")
-        data = create_data(corpus, vocab)
+        anchor_indices, context_indices, labels = create_data(corpus, vocab)
         print("Done creating data.")
 
     print("Length of data: {:,}\n".format(len(data)))
 
-    # Converts data to an np array.
-    data = np.asarray(data)
+    # Converts dataset to np arrays.
+    anchor_indices = np.asarray(anchor_indices)
+    context_indices = np.asarray(context_indices)
+    labels = np.asarray(labels)
 
-    return vocab, data
+    return vocab, anchor_indices, context_indices, labels
 
-def train_model(model, data):
+def train_model(model, anchor_indices, context_indices, labels):
     """ Trains the model. """
 
     # Separates anchors, contexts, and labels from data
-    input_tuples = [datum[0] for datum in data]
-    (anchor_indices, context_indices) = [tup for tup in zip(*input_tuples)]
-    labels = [datum[1] for datum in data]
     input_pairs = {"anchor_index": anchor_indices,
                    "context_index": context_indices}
 
@@ -200,9 +207,9 @@ def train_model(model, data):
     return model
 
 def main():
-    vocab, data = get_vocab_and_data()
+    vocab, anchor_indices, context_indices, labels = get_vocab_and_data()
     model = create_model(vector_dim=FLAGS.vector_dim, vocab_size=len(vocab))
-    model = train_model(model, data)
+    model = train_model(model, anchor_indices, context_indices, labels)
 
 if __name__ == "__main__":
     # Instantiates an argument parser
@@ -242,9 +249,17 @@ if __name__ == "__main__":
                                         (default: ../saved/skipgram/\
                                         negative_weights.pickle)")
 
-    parser.add_argument("--data_path", default="../saved/skipgram/data.pickle",
-                        type=str, help="Path to data saved as a .pickle file \
-                                        (default: ../saved/skipgram/data.pickle)")
+    parser.add_argument("--anchor_indices_path", default="../saved/skipgram/data/anchor_indices.pickle",
+                        type=str, help="Path to anchor indices saved as a .pickle file \
+                                        (default: ../saved/skipgram/data/anchor_indices.pickle)")
+
+    parser.add_argument("--context_indices_path", default="../saved/skipgram/data/context_indices.pickle",
+                        type=str, help="Path to context indices saved as a .pickle file \
+                                        (default: ../saved/skipgram/data/context_indices.pickle)")
+
+    parser.add_argument("--labels_path", default="../saved/skipgram/data/labels.pickle",
+                        type=str, help="Path to labels saved as a .pickle file \
+                                        (default: ../saved/skipgram/data/labels.pickle)")
 
     parser.add_argument("--weights_path",
                         default="../saved/skipgram/weights/weights-{epoch:02d}-{val_acc:.2f}.hdf5",
