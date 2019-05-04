@@ -4,15 +4,7 @@ from keras.layers import Dense, Activation
 import pickle
 import operator
 
-model = Sequential([
-    Dense(32, input_shape=(11231,)),
-    Dense(11231),
-    Activation("softmax")
-])
-
-model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
-model.summary()
-
+model = create_model()
 model.load_weights("weights.h5")
 
 weights = model.layers[1].get_weights()
@@ -70,8 +62,8 @@ def n_biggest_difference(n, word1index, word2index, vocab, vectors):
 
 #print(distance_between(vocab["man"], vocab["woman"], vocab["president"], vectors))
 #print(distance_between
-print(n_closest(300, vocab["men"], vocab, vectors))
+print(n_closest(30, vocab["men"], vocab, vectors))
 #print()
-print(n_closest(300, vocab["women"], vocab, vectors))
+print(n_closest(30, vocab["women"], vocab, vectors))
 #print()
 #print(n_biggest_difference(50, vocab["man"], vocab["woman"], vocab, vectors))

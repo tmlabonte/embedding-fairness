@@ -196,7 +196,7 @@ def train_model(model, anchor_indices, context_indices, labels):
                                  save_weights_only=True)
 
     # Trains the model.
-    model.fit(x=input_pairs, y=labels, validation_split=0.2, epochs=FLAGS.epochs,
+    model.fit(x=input_pairs, y=labels, epochs=FLAGS.epochs,
               batch_size=FLAGS.batch_size, callbacks=[checkpoint])
 
     # # Calculates the number of batches per epoch
