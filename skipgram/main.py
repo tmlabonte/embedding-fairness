@@ -112,6 +112,8 @@ def create_data(corpus, vocab):
                 labels.append(0)
 
     # Saves dataset as .pickle files.
+    os.makedirs(FLAGS.anchor_indices_path, exist_ok=True)
+
     pickle.dump(anchor_indices, open(FLAGS.anchor_indices_path, "wb"))
     pickle.dump(context_indices, open(FLAGS.context_indices_path, "wb"))
     pickle.dump(labels, open(FLAGS.labels_path, "wb"))
@@ -142,8 +144,10 @@ def get_vocab_and_data():
     print("Length of vocab: {:,}\n".format(len(vocab)))
 
     # Loads the dataset if possible.
-    if os.path.isfile(FLAGS.data_path):
-        data = pickle.load(open(FLAGS.data_path, "rb"))
+    if os.path.isfile(FLAGS.anchor_indices_path) and os.path.isfile(FLAGS.context_indices_path) and os.path.isfile(FLAGS.labels_path):
+        anchor_indices = pickle.load(open(FLAGS.anchor_indices_path), "rb")
+        context_indices = pickle.load(open(FLAGS.context_indices_path), "rb")
+        labels = pickle.load(open(FLAGS.labels_path), "rb")
         print("Loaded data.")
 
     # Creates the dataset.
@@ -164,7 +168,7 @@ def get_vocab_and_data():
 def train_model(model, anchor_indices, context_indices, labels):
     """ Trains the model. """
 
-    # Separates anchors, contexts, and labels from data
+    # Creates input for model.
     input_pairs = {"anchor_index": anchor_indices,
                    "context_index": context_indices}
 
