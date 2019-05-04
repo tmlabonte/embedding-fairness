@@ -100,8 +100,8 @@ def create_corpus_and_vocab(csv_path, corpus_path, vocab_path,
             vocab.setdefault(word, len(vocab))
 
     # Creates directories if necessary.
-    os.makedirs(corpus_path, exist_ok=True)
-    os.makedirs(vocab_path, exist_ok=True)
+    os.makedirs(os.path.dirname(corpus_path), exist_ok=True)
+    os.makedirs(os.path.dirname(vocab_path), exist_ok=True)
 
     # Saves the corpus and vocab.
     pickle.dump(corpus, open(corpus_path, "wb"))
@@ -152,7 +152,7 @@ def create_co_matrix(corpus, vocab, num_articles, co_matrix_path):
     matrix = matrix.tocsr()
 
     # Creates directory if necessary.
-    os.makedirs(co_matrix_path, exist_ok=True)
+    os.makedirs(os.path.dirname(co_matrix_path), exist_ok=True)
 
     # Saves co-occurence matrix as a .npz file.
     save_npz(co_matrix_path, matrix)

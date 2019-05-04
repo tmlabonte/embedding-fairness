@@ -65,7 +65,7 @@ def create_ppmi_matrix(co_matrix):
     ppmi_matrix = ppmi_matrix.tocsr()
 
     # Creates directory if necessary.
-    os.makedirs(FLAGS.ppmi_matrix_path, exist_ok=True)
+    os.makedirs(os.path.dirname(FLAGS.ppmi_matrix_path), exist_ok=True)
 
     # Saves PPMI matrix.
     save_npz(FLAGS.ppmi_matrix_path, ppmi_matrix)

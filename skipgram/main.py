@@ -46,7 +46,7 @@ def create_negative_sampling_weights(corpus, vocab):
     assert abs(np.sum(weights) - 1.) < 0.01
 
     # Creates directory if necessary.
-    os.makedirs(FLAGS.negative_weights_path, exist_ok=True)
+    os.makedirs(os.path.dirname(FLAGS.negative_weights_path), exist_ok=True)
 
     # Saves weights as a .pickle file.
     pickle.dump(weights, open(FLAGS.negative_weights_path, "wb"))
@@ -118,9 +118,9 @@ def create_data(corpus, vocab):
                 labels.append(0)
 
     # Creates directories if necessary.
-    os.makedirs(FLAGS.anchor_indices_path, exist_ok=True)
-    os.makedirs(FLAGS.context_indices_path, exist_ok=True)
-    os.makedirs(FLAGS.labels_path, exist_ok=True)
+    os.makedirs(os.path.dirname(FLAGS.anchor_indices_path), exist_ok=True)
+    os.makedirs(os.path.dirname(FLAGS.context_indices_path), exist_ok=True)
+    os.makedirs(os.path.dirname(FLAGS.labels_path), exist_ok=True)
 
     # Saves dataset as .pickle files.
     pickle.dump(anchor_indices, open(FLAGS.anchor_indices_path, "wb"))
