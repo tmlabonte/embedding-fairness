@@ -24,7 +24,7 @@ def create_model(vector_dim, vocab_size):
     context_vector = embedding(context_index)
     context_vector = Reshape((vector_dim, 1))(context_vector)
 
-    # Takes the dot product of the anchor and contex
+    # Takes the dot product of the anchor and context
     # as a similarity measure.
     dot_product = dot([anchor_vector, context_vector], axes=1)
     dot_product = Reshape((1,))(dot_product)

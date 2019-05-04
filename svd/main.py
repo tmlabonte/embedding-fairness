@@ -123,29 +123,6 @@ def get_vocab_and_ppmi_matrix():
 
     return vocab, ppmi_matrix
 
-def dist(word_vec1, word_vec2):
-    """ Returns the distance between two word vectors. """
-
-    # Calculates vector distance via the norm of the difference.
-    return np.linalg.norm(word_vec1 - word_vec2)
-
-def n_closest_words(word, n, reduced_matrix, vocab, reversed_vocab):
-    """ Returns the n closest words to a given target word. """
-
-    # Gets the word vector for the target word.
-    word_row = reduced_matrix[vocab[word]]
-
-    # Calculates the distance between the target word and all other words.
-    dists = np.asarray([dist(word_row, row) for row in reduced_matrix])
-
-    # Selects the n indices with minimal distance.
-    top_n_indices = np.argpartition(dists, n + 1)[:n + 1]
-
-    # Transforms the indices into their corresponding words.
-    top_n_words = [reversed_vocab[index] for index in top_n_indices if index != vocab[word]]
-
-    return top_n_words
-
 def n_dim_reduced_matrix(n_dim, matrix):
     """ Reduces dimensionality of the PPMI matrix via SVD. """
 
@@ -159,16 +136,10 @@ def n_dim_reduced_matrix(n_dim, matrix):
     return svd, reduced_matrix
 
 def main():
-    vocab, ppmi_matrix = get_vocab_and_ppmi_matrix()
-    _, reduced_matrix = n_dim_reduced_matrix(100, ppmi_matrix)
+    _, ppmi_matrix = get_vocab_and_ppmi_matrix()
+    _, weights = n_dim_reduced_matrix(100, ppmi_matrix)
 
-    reversed_vocab = dict(zip(vocab.values(), vocab.keys()))
-
-    top30_words_men = n_closest_words("men", 30, reduced_matrix, vocab, reversed_vocab)
-    top30_words_women = n_closest_words("women", 30, reduced_matrix, vocab, reversed_vocab)
-
-    print("Top 30 Words Associated with MEN: " + str(top30_words_men))
-    print("Top 30 Words Associated with WOMEN: " + str(top30_words_women))
+    return weights
 
 #    x = np.arange(2, 222)
 #    y = np.zeros(x.size)

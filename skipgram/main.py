@@ -108,7 +108,7 @@ def create_data(corpus, vocab):
                 anchor_indices.append(vocab[anchor_word])
                 context_indices.append(vocab[context_word])
                 labels.append(1)
-            
+     
             # Samples negative words.
             negative_word_indices = np.random.choice(a=to_sample,
                                                      size=FLAGS.num_negative_samples,
@@ -199,34 +199,6 @@ def train_model(model, anchor_indices, context_indices, labels):
     model.fit(x=input_pairs, y=labels, epochs=FLAGS.epochs,
               batch_size=FLAGS.batch_size, callbacks=[checkpoint])
 
-    # # Calculates the number of batches per epoch
-    # num_batches = math.ceil(len(data) / FLAGS.batch_size)
-
-    # # Trains the model for the specified number of epochs
-    # for epoch in range(1, FLAGS.epochs + 1):
-    #     # Creates batches of data for training
-    #     for batch_num in range(num_batches):
-    #         # Gets the batch from the dataset
-    #         batch_start = FLAGS.batch_size * batch_num
-    #         batch_end = FLAGS.batch_size * (batch_num + 1)
-    #         anchors_batch = anchors[batch_start : min(batch_end, len(anchors))]
-    #         contexts_batch = contexts[batch_start : min(batch_end, len(contexts))]
-
-    #         # Converts batch to one hot vectors
-    #         anchors_batch = indices2one_hot(anchors_batch, vocab_size)
-    #         contexts_batch = indices2one_hot(contexts_batch, vocab_size)
-
-    #         # Converts batch to np arrays
-    #         anchors_batch = np.asarray(anchors_batch)
-    #         contexts_batch = np.asarray(contexts_batch)
-
-    #         # Fits model on batch
-    #         model.fit(anchors_batch, contexts_batch)
-
-    #     # Prints progress and saves weights
-    #     print("----EPOCH {} COMPLETED----".format(epoch))
-    #     model.save_weights(FLAGS.weights_folder + "/weights{}.h5".format(epoch))
-
     return model
 
 def main():
@@ -285,10 +257,10 @@ if __name__ == "__main__":
                                         (default: ../saved/skipgram/data/labels.pickle)")
 
     parser.add_argument("--weights_path",
-                        default="../saved/skipgram/weights/weights-{epoch:02d}-{val_acc:.2f}.hdf5",
+                        default="../saved/skipgram/weights/weights-{epoch:02d}.hdf5",
                         type=str, help="Path to network weights folder \
                                         (default: ../saved/skipgram/weights/\
-                                        weights-{epoch:02d}-{val_acc:.2f}.hdf5)")
+                                        weights-{epoch:02d}.hdf5)")
 
     parser.add_argument("--vector_dim", default=100, type=int,
                         help="Embedding vector size (default: 100)")
