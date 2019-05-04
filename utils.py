@@ -34,7 +34,7 @@ def article_preprocess(article):
     return article
 
 def corpus_preprocess(corpus, min_freq):
-    """ Preprocesses corpus by removing rare words and stopwords"""
+    """ Preprocesses corpus by removing rare words and stopwords. """
 
     # Creates a dictionary of word : count.
     counts = {}
@@ -133,30 +133,35 @@ def create_co_matrix(corpus, vocab, num_articles, co_matrix_path):
 
         # Converts article to list of words for processing.
         article = article.split()
-        for anchor_word_index, anchor_word in enumerate(article):
+        for anchor_word_index_in_article, anchor_word in enumerate(article):
             # Samples window size.
             window_size = randrange(1, 11)
 
             # Obtains context words.
-            pre_context = article[max(anchor_word_index - window_size, 0) : \
-                                  anchor_word_index]
-            post_context = article[min(anchor_word_index + 1, len(article)) : \
-                                   min(anchor_word_index + window_size + 1, len(article))]
+            pre_context = article[max(anchor_word_index_in_article - window_size, 0) : \
+                                  anchor_word_index_in_article]
+            post_context = article[min(anchor_word_index_in_article + 1, len(article)) : \
+                                   min(anchor_word_index_in_article + window_size + 1, len(article))]
             context_words = pre_context + post_context
 
             # Updates co-occurrence values in the matrix.
             for context_word in context_words:
                 matrix[vocab[anchor_word], vocab[context_word]] += 1
 
-    # Converts co-occurrence matrix to csr_matrix format and saves it as a .npz file.
+    # Converts co-occurrence matrix to csr_matrix format.
     matrix = matrix.tocsr()
+
+    # Creates directory if necessary.
+    os.makedirs(co_matrix_path, exist_ok=True)
+
+    # Saves co-occurence matrix as a .npz file.
     save_npz(co_matrix_path, matrix)
     print("Saved co-occurrence matrix.")
 
     return matrix
 
 def load_corpus_and_vocab(corpus_path, vocab_path):
-    """ Loads the corpus and vocab"""
+    """ Loads the corpus and vocab. """
 
     return pickle.load(open(corpus_path, "rb")), \
            pickle.load(open(vocab_path, "rb"))

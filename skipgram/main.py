@@ -19,7 +19,7 @@ def create_negative_sampling_weights(corpus, vocab):
 
         Negative samples are sampled according to the smoothed unigram
         distribution: Pr[c] = (#c)^a / sum[(#w)^a]. Levy and Goldberg 2015
-        suggest a=0.75.
+        suggest a = 0.75.
     """
 
     # Load the co-occurrence matrix if possible.
@@ -42,9 +42,15 @@ def create_negative_sampling_weights(corpus, vocab):
     # Creates the weights list.
     weights = [count / co_total_smoothed for count in co_row_sum_smoothed]
 
-    # Ensures weights are correct and saves them as a .pickle file.
+    # Ensures weights are correct.
     assert abs(np.sum(weights) - 1.) < 0.01
+
+    # Creates directory if necessary.
+    os.makedirs(FLAGS.negative_weights_path, exist_ok=True)
+
+    # Saves weights as a .pickle file.
     pickle.dump(weights, open(FLAGS.negative_weights_path, "wb"))
+    print("Saved weights.")
 
     return weights
 
@@ -111,20 +117,24 @@ def create_data(corpus, vocab):
                 context_indices.append(negative_word_index)
                 labels.append(0)
 
-    # Saves dataset as .pickle files.
+    # Creates directories if necessary.
     os.makedirs(FLAGS.anchor_indices_path, exist_ok=True)
+    os.makedirs(FLAGS.context_indices_path, exist_ok=True)
+    os.makedirs(FLAGS.labels_path, exist_ok=True)
 
+    # Saves dataset as .pickle files.
     pickle.dump(anchor_indices, open(FLAGS.anchor_indices_path, "wb"))
     pickle.dump(context_indices, open(FLAGS.context_indices_path, "wb"))
     pickle.dump(labels, open(FLAGS.labels_path, "wb"))
+    print("Saved dataset.")
 
     return anchor_indices, context_indices, labels
 
 def get_vocab_and_data():
     """ Loads and/or creates the corpus and vocab
-        and the data (anchor words, context words, and label).
+        and the dataset (anchor words, context words, and label).
 
-        Returns the vocab and data.
+        Returns the vocab and dataset (in the 3 components above).
     """
 
     # Loads the corpus and vocab if possible.
@@ -144,19 +154,21 @@ def get_vocab_and_data():
     print("Length of vocab: {:,}\n".format(len(vocab)))
 
     # Loads the dataset if possible.
-    if os.path.isfile(FLAGS.anchor_indices_path) and os.path.isfile(FLAGS.context_indices_path) and os.path.isfile(FLAGS.labels_path):
+    if os.path.isfile(FLAGS.anchor_indices_path) and \
+       os.path.isfile(FLAGS.context_indices_path) and \
+       os.path.isfile(FLAGS.labels_path):
         anchor_indices = pickle.load(open(FLAGS.anchor_indices_path), "rb")
         context_indices = pickle.load(open(FLAGS.context_indices_path), "rb")
         labels = pickle.load(open(FLAGS.labels_path), "rb")
-        print("Loaded data.")
+        print("Loaded dataset.")
 
     # Creates the dataset.
     else:
-        print("Creating data...\n")
+        print("Creating dataset...\n")
         anchor_indices, context_indices, labels = create_data(corpus, vocab)
-        print("Done creating data.")
+        print("Done creating dataset.")
 
-    print("Length of data: {:,}\n".format(len(data)))
+    print("Length of dataset: {:,}\n".format(len(labels)))
 
     # Converts dataset to np arrays.
     anchor_indices = np.asarray(anchor_indices)
@@ -172,11 +184,11 @@ def train_model(model, anchor_indices, context_indices, labels):
     input_pairs = {"anchor_index": anchor_indices,
                    "context_index": context_indices}
 
-    # Creates checkpoint callback
+    # Creates checkpoint callback.
     checkpoint = ModelCheckpoint(filepath=FLAGS.weights_path,
                                  save_weights_only=True)
 
-    # Trains the model
+    # Trains the model.
     model.fit(x=input_pairs, y=labels, validation_split=0.2, epochs=FLAGS.epochs,
               batch_size=FLAGS.batch_size, callbacks=[checkpoint])
 
@@ -276,7 +288,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--num_negative_samples", default=5, type=int,
                         help="Number of negative samples per occurrence of \
-                              a positive sample in the data (default: 5)")
+                              a positive sample in the dataset (default: 5)")
 
     parser.add_argument("--epochs", default=10, type=int,
                         help="Num of epochs for training (default: 10)")

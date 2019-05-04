@@ -21,7 +21,7 @@ def create_ppmi_matrix(co_matrix):
         PPMI = max( Pr[i U j] / (Pr[i] * Pr[j]), 0 )
         Furthermore, we "smooth" the distribution by
         Pr[j] = (#j)^a / sum[(#w)^a].
-        Levy and Goldberg 2015 suggest a=0.75.
+        Levy and Goldberg 2015 suggest a = 0.75.
     """
 
     # Converts co-occurrence matrix to dok_matrix format for easier indexing.
@@ -61,8 +61,13 @@ def create_ppmi_matrix(co_matrix):
         # Updates PPMI values in the matrix.
         ppmi_matrix[anchor_word_index, context_word_index] = ppmi
 
-    # Converts PPMI matrix to csr_matrix format and saves it as a .npz file.
+    # Converts PPMI matrix to csr_matrix format.
     ppmi_matrix = ppmi_matrix.tocsr()
+
+    # Creates directory if necessary.
+    os.makedirs(FLAGS.ppmi_matrix_path, exist_ok=True)
+
+    # Saves PPMI matrix.
     save_npz(FLAGS.ppmi_matrix_path, ppmi_matrix)
     print("Saved PPMI matrix.")
 
