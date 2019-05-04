@@ -86,6 +86,10 @@ def create_data(corpus, vocab):
         if article_index % 100 == 0:
             print("Processing article {:,}/{:,}".format(article_index, FLAGS.num_articles))
 
+        # Creates np arrays for negative sampling.
+        to_sample = np.arange(len(vocab))
+        weights = np.asarray(weights)
+
         # Converts article to list of words for processing.
         article = article.split()
         for anchor_word_index_in_article, anchor_word in enumerate(article):
@@ -104,9 +108,9 @@ def create_data(corpus, vocab):
                 anchor_indices.append(vocab[anchor_word])
                 context_indices.append(vocab[context_word])
                 labels.append(1)
-
+            
             # Samples negative words.
-            negative_word_indices = np.random.choice(a=len(vocab),
+            negative_word_indices = np.random.choice(a=to_sample,
                                                      size=FLAGS.num_negative_samples,
                                                      replace=False,
                                                      p=weights)
@@ -157,9 +161,9 @@ def get_vocab_and_data():
     if os.path.isfile(FLAGS.anchor_indices_path) and \
        os.path.isfile(FLAGS.context_indices_path) and \
        os.path.isfile(FLAGS.labels_path):
-        anchor_indices = pickle.load(open(FLAGS.anchor_indices_path), "rb")
-        context_indices = pickle.load(open(FLAGS.context_indices_path), "rb")
-        labels = pickle.load(open(FLAGS.labels_path), "rb")
+        anchor_indices = pickle.load(open(FLAGS.anchor_indices_path, "rb"))
+        context_indices = pickle.load(open(FLAGS.context_indices_path, "rb"))
+        labels = pickle.load(open(FLAGS.labels_path, "rb"))
         print("Loaded dataset.")
 
     # Creates the dataset.
@@ -179,6 +183,9 @@ def get_vocab_and_data():
 
 def train_model(model, anchor_indices, context_indices, labels):
     """ Trains the model. """
+
+    # Creates directory if necessary.
+    os.makedirs(os.path.dirname(FLAGS.weights_path), exist_ok=True)
 
     # Creates input for model.
     input_pairs = {"anchor_index": anchor_indices,
@@ -293,8 +300,8 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", default=10, type=int,
                         help="Num of epochs for training (default: 10)")
 
-    parser.add_argument("--batch_size", default=128, type=int,
-                        help="Batch size for training (default: 128)")
+    parser.add_argument("--batch_size", default=512, type=int,
+                        help="Batch size for training (default: 512)")
 
     # Sets arguments as FLAGS
     FLAGS, _ = parser.parse_known_args()
