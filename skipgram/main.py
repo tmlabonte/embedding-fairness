@@ -236,11 +236,11 @@ if __name__ == "__main__":
                                         a .npz file (default: ../saved/co_matrix.npz)")
 
     parser.add_argument("--negative_weights_path",
-                        default="../saved/skipgram/negative_weights_path.pickle",
+                        default="../saved/skipgram/negative_weights.pickle",
                         type=str, help="Path to negative sampling weights list \
                                         saved as a .pickle file \
                                         (default: ../saved/skipgram/\
-                                        negative_weights_path.pickle)")
+                                        negative_weights.pickle)")
 
     parser.add_argument("--data_path", default="../saved/skipgram/data.pickle",
                         type=str, help="Path to data saved as a .pickle file \
